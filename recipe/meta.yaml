@@ -1,0 +1,100 @@
+{% set name = "rapidocr" %}
+{% set version = "3.9.2" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/RapidAI/{{ name }}/archive/refs/tags/v{{ version }}.tar.gz
+  sha256: 0342bb616322661038eec54e6d14935a09e13fd0bcfecc7d8c3faf16e34fa805
+
+build:
+  number: 0
+  skip: true  # [py<38]
+  entry_points:
+    - rapidocr = rapidocr.main:main
+  script_env:
+    - SETUPTOOLS_SCM_PRETEND_VERSION={{ version }}
+  script: {{ PYTHON }} -m pip install ./python --no-deps --no-build-isolation -vv
+
+requirements:
+  host:
+    - python
+    - pip
+    - setuptools >=77
+    - setuptools-scm >=8
+    - wheel
+  run:
+    - python
+    - pyclipper >=1.2.0
+    - py-opencv >=4.5.1.48
+    - numpy >=1.19.5,<3.0.0
+    - six >=1.15.0
+    - shapely >=1.7.1,!=2.0.4
+    - pyyaml
+    - pillow
+    - tqdm
+    - omegaconf !=2.2.1
+    - requests
+    - colorlog
+
+# Requires OpenVINO, which is not available in the Anaconda channels.
+{% set ignored_tests = "--ignore=python/tests/test_engine_config.py" %}
+
+# Tests below require optional inference engines not available in the base test environment.
+{% set deselected_tests = "--deselect=python/tests/test_cls.py::test_ppocrv5_cls_mobile" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_engine.py::test_ppocrv5_rec_mobile" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_engine.py::test_ppocrv5_det_mobile" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_engine.py::test_engine_openvino" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_engine.py::test_engine_paddle" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_engine.py::test_engine_torch" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_engine.py::test_ppocrv6_det_small" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_engine.py::test_ppocrv6_rec_small" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_rec_language.py::test_arabic_lang" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_rec_language.py::test_el_lang" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_rec_language.py::test_th_lang" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_rec_language.py::test_latin_lang" %}
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_rec_language.py::test_eslav_lang" %}
+
+# Upstream CLI tests use shlex.split() with Windows paths. POSIX-style parsing
+# treats backslashes as escape characters, so the paths are corrupted.
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_cli.py::test_cli" %}  # [win]
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_cli.py::test_cli_download_models" %}  # [win]
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_cli.py::test_cli_config" %}  # [win]
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_cli.py::test_cli_vis" %}  # [win]
+{% set deselected_tests = deselected_tests + " --deselect=python/tests/test_cli.py::test_cli_lang_type" %}  # [win]
+
+test:
+  source_files:
+    - python/tests
+    - python/tools
+    - python/rapidocr/config.yaml
+    - python/rapidocr/default_models.yaml
+  imports:
+    - rapidocr
+  requires:
+    - pip
+    - pytest
+    - onnxruntime
+  commands:
+    - pip check
+    - python -c "from importlib.metadata import version; assert version('{{ name }}') == '{{ version }}'"
+    - rapidocr --help
+    - pytest -v python/tests {{ ignored_tests }} {{ deselected_tests }}
+
+about:
+  home: https://github.com/RapidAI/RapidOCR
+  license: Apache-2.0
+  license_family: Apache
+  license_file: LICENSE
+  summary: Awesome OCR Library
+  description: |
+    A cross platform OCR Library based on OnnxRuntime/OpenVINO/PaddlePaddle.
+    It supports text detection and recognition.
+  doc_url: https://rapidai.github.io/RapidOCRDocs
+  dev_url: https://github.com/RapidAI/RapidOCR
+
+extra:
+  recipe-maintainers:
+    - kklein
